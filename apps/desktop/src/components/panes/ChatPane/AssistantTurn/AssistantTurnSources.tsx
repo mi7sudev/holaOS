@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ExternalLink, X, FileText } from "@/components/ui/icons";
+import { ExternalLink, FileText, ChevronDown } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import { createPortal } from "react-dom";
 import type { ChatTraceSource, ChatAssistantSegment, WorkspaceOutputRecordPayload } from "../types";
@@ -61,116 +61,108 @@ export function AssistantTurnSources({
   onLinkClick?: (url: string) => void;
 }) {
   const sourceTokens = extractSourceTokens(segments);
-  const [openSource, setOpenSource] = useState<string | null>(null);
+  const [sourcesOpen, setSourcesOpen] = useState(false);
 
   if (outputs.length === 0 && sourceTokens.length === 0) return null;
 
   return (
-    <div className="mt-2.5 flex flex-wrap gap-1.5">
-      {sourceTokens.map((token, index) => (
-        <div
-          key={token.source.url}
-          className="relative group/source"
-        >
+    <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+      {sourceTokens.length > 0 && (
+        <div className="relative">
           <button
             type="button"
+            aria-expanded={sourcesOpen}
+            onClick={() => setSourcesOpen((current) => !current)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-[11.5px] text-muted-foreground shadow-sm transition-colors hover:bg-fg-6",
+              "inline-flex items-center gap-1.5 rounded-[6px] px-1.5 py-0.5 text-left transition-colors duration-150 hover:bg-hover",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             )}
-            onClick={() => setOpenSource(openSource === token.source.url ? null : token.source.url)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                setOpenSource(openSource === token.source.url ? null : token.source.url);
-              }
-            }}
-            aria-expanded={openSource === token.source.url}
-            aria-haspopup="dialog"
           >
-            <img
-              src={token.faviconUrl}
-              alt=""
-              className="size-3.5 rounded"
-              loading="lazy"
-              onError={(e) => {
-                e.currentTarget.src = `https://www.google.com/s2/favicons?domain=${getDomain(token.source.url)}&sz=32`;
-              }}
+            <span className="flex -space-x-1">
+              {sourceTokens.slice(0, 5).map((token, i) => (
+                <img
+                  key={token.source.url}
+                  src={token.faviconUrl}
+                  alt=""
+                  className="source-avatar size-3.5 rounded-full bg-muted shadow-[0_0_0_1.5px_var(--border)]"
+                  loading="lazy"
+                  onError={(e) => {
+                    e.currentTarget.src = `https://www.google.com/s2/favicons?domain=${getDomain(token.source.url)}&sz=32`;
+                  }}
+                  style={{ zIndex: 5 - i }}
+                />
+              ))}
+              {sourceTokens.length > 5 && (
+                <span
+                  className="flex size-3.5 shrink-0 items-center justify-center rounded-full bg-muted text-[9px] font-medium text-muted-foreground"
+                  style={{ zIndex: 0 }}
+                >
+                  +{sourceTokens.length - 5}
+                </span>
+              )}
+            </span>
+            <span className="text-[12px] text-muted-foreground">
+              {sourceTokens.length} source{sourceTokens.length === 1 ? "" : "s"}
+            </span>
+            <ChevronDown
+              className={cn(
+                "size-3.5 shrink-0 text-muted-foreground transition-transform duration-200",
+                sourcesOpen && "rotate-180"
+              )}
             />
-            <span className="truncate max-w-[180px]">{token.source.title}</span>
-            <ExternalLink className="size-3 shrink-0 opacity-50 group-hover/source:opacity-100" />
           </button>
 
-          {openSource === token.source.url && (
+          {sourcesOpen && (
             <>
               <div
                 className="fixed inset-0 z-40"
-                onClick={() => setOpenSource(null)}
+                onClick={() => setSourcesOpen(false)}
                 aria-hidden="true"
               />
               {createPortal(
                 <div
                   className={cn(
-                    "fixed z-50 w-72 rounded-[10px] border border-border bg-card shadow-xl",
+                    "fixed z-50 w-80 rounded-[10px] border border-border bg-card shadow-xl",
                     "animate-in fade-in-0 zoom-in-95 duration-150 ease-out-expo"
                   )}
                   style={{
-                    top: 40 + index * 44,
+                    bottom: 48,
                     right: 12,
                   }}
-                  role="dialog"
-                  aria-label={token.source.title}
+                  role="menu"
+                  aria-label="Sources"
                 >
-                  <div className="flex items-center justify-between border-b border-border px-3 py-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <img
-                        src={token.faviconUrl}
-                        alt=""
-                        className="size-4 rounded"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.src = `https://www.google.com/s2/favicons?domain=${getDomain(token.source.url)}&sz=32`;
-                        }}
-                      />
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {token.source.title}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setOpenSource(null)}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground"
-                      aria-label="Close"
-                    >
-                      <X className="size-4" />
-                    </button>
-                  </div>
-                  <div className="p-3">
-                    <div className="text-xs text-muted-foreground mb-2 break-all">
-                      {token.source.url}
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          window.open(token.source.url, "_blank", "noopener,noreferrer");
-                          setOpenSource(null);
-                        }}
-                        className="flex-1 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90"
+                  <div className="flex flex-col gap-0.5 p-2">
+                    {sourceTokens.map((token) => (
+                      <a
+                        key={token.source.url}
+                        href={token.source.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={cn(
+                          "flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-hover hover:text-foreground",
+                          "group/source-row"
+                        )}
+                        onClick={() => setSourcesOpen(false)}
                       >
-                        Open
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard.writeText(token.source.url);
-                          setOpenSource(null);
-                        }}
-                        className="flex-1 py-1.5 rounded-md border border-border bg-muted text-muted-foreground text-xs font-medium hover:bg-muted/80"
-                      >
-                        Copy
-                      </button>
-                    </div>
+                        <img
+                          src={token.faviconUrl}
+                          alt=""
+                          className="source-avatar size-4 rounded-[4px]"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.src = `https://www.google.com/s2/favicons?domain=${getDomain(token.source.url)}&sz=32`;
+                          }}
+                        />
+                        <span className="animated-underline truncate flex-1">
+                          {token.source.title || getDomain(token.source.url)}
+                        </span>
+                        <span className="ml-auto font-mono text-[10.5px] text-muted-foreground/70">
+                          {getDomain(token.source.url)}
+                        </span>
+                        <ExternalLink className="size-3 shrink-0 opacity-50 group-hover/source-row:opacity-100" />
+                      </a>
+                    ))}
                   </div>
                 </div>,
                 document.body,
@@ -178,7 +170,8 @@ export function AssistantTurnSources({
             </>
           )}
         </div>
-      ))}
+      )}
+
       {outputs.map((output) => (
         <div key={output.id} className="relative group/output">
           <button
