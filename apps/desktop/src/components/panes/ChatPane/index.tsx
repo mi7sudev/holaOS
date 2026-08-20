@@ -162,6 +162,7 @@ import {
   type ChatComposerQuotedIntegrationItem,
   type ChatComposerMentionItem,
   type StreamTelemetryEntry,
+  type ChatTraceSource,
 } from "./types";
 import {
   MAIN_SESSION_EVENT_BATCH_HEADER,
@@ -1353,6 +1354,71 @@ function summarizeUnknown(value: unknown, maxLength = 140): string {
   return String(value);
 }
 
+const TOOL_RESULT_TITLE_URL_PATTERN = /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/gi;
+const TOOL_RESULT_URL_PATTERN = /https?:\/\/[^\s\]\)>]+/gi;
+
+function firstToolResultString(
+  record: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const k of keys) {
+    const v = record[k];
+    if (typeof v === "string" && v.trim()) return v.trim();
+  }
+  return null;
+}
+
+function extractToolResultSources(
+  result: unknown,
+  limit = 6,
+): ChatTraceSource[] {
+  const sources: ChatTraceSource[] = [];
+  const seen = new Set<string>();
+  const push = (title: string, url: string) => {
+    const normalized = url.replace(/[),.;]+$/, "");
+    if (
+      !/^https?:\/\//i.test(normalized) ||
+      seen.has(normalized) ||
+      sources.length >= limit
+    ) {
+      return;
+    }
+    seen.add(normalized);
+    sources.push({ title: title.trim() || normalized, url: normalized });
+  };
+  const pushTextLinks = (text: string) => {
+    let match: RegExpExecArray | null;
+    while ((match = TOOL_RESULT_TITLE_URL_PATTERN.exec(text)) !== null) {
+      push(match[1], match[2]);
+      if (sources.length >= limit) return;
+    }
+    for (const url of text.match(TOOL_RESULT_URL_PATTERN) ?? []) {
+      push(url, url);
+      if (sources.length >= limit) return;
+    }
+  };
+  const walk = (value: unknown) => {
+    if (sources.length >= limit) return;
+    if (typeof value === "string") {
+      pushTextLinks(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item);
+      return;
+    }
+    if (!isRecord(value)) return;
+    const url = firstToolResultString(value, ["url", "link", "href", "source_url"]);
+    if (url && /^https?:\/\//i.test(url)) {
+      const title = firstToolResultString(value, ["title", "name", "headline", "snippet"]) ?? "";
+      push(title, url);
+    }
+    for (const nested of Object.values(value)) walk(nested);
+  };
+  walk(result);
+  return sources;
+}
+
 function runFailedContextLabel(payload: Record<string, unknown>): string {
   const provider =
     typeof payload.provider === "string" ? payload.provider.trim() : "";
@@ -2028,8 +2094,12 @@ function toolTraceStepFromPayload(
         : "running",
     details,
     order,
+    sources: !isError && TOOL_TRACE_TERMINAL_PHASES.has(phase)
+      ? extractToolResultSources(payload.result)
+      : undefined,
   };
 }
+
 function extractMcpErrorText(result: unknown): string {
   if (!isRecord(result) || result.isError !== true) {
     return "";

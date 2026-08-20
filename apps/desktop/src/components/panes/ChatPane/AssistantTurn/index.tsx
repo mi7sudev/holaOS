@@ -1,6 +1,4 @@
 import { type ReactNode, memo, useMemo, useState } from "react";
-import { AgentAvatar } from "@/components/ui/agent-avatar";
-import { HarnessAvatar } from "@/components/harness/HarnessAvatar";
 import { ErrorSegment } from "./ErrorSegment";
 import { SimpleMarkdown } from "@/components/marketplace/SimpleMarkdown";
 import { chatMessageTimeLabel } from "../helpers";
@@ -29,6 +27,7 @@ import type {
 } from "../types";
 import { AssistantTurnActionsMenu } from "./ActionsMenu";
 import { AssistantTurnOutputs } from "./Outputs";
+import { AssistantTurnSources } from "./AssistantTurnSources";
 import {
   AssistantTurnIntegrationConnects,
   type AssistantTurnPendingIntegration,
@@ -40,12 +39,12 @@ import {
 import { AssistantTurnMcpAuthorizations } from "./McpAuthorizeCard";
 import type { ChatMcpAuthorization } from "../types";
 import { TraceStepGroup } from "./TraceStepGroup";
-import { resolveTurnStatus } from "./turnStatus";
+import { resolveTurnStatus, type OrbState } from "./turnStatus";
+import { ThinkingOrb } from "@/components/ui/thinking-orb";
 import {
   ArrowUpRight,
   CircleAlert,
   CompassFilled,
-  Loader2,
   Task,
 } from "@/components/ui/icons";
 
@@ -280,19 +279,25 @@ function AssistantTurnComponent({
   const hasShareMediaOutput = outputs.some(isShareableMediaOutput);
   const turnStatusAnchor = turnStatus ? (
     <div className="mb-1.5 flex min-w-0 items-center justify-between gap-3">
-      <div
-        className={`flex min-w-0 items-center gap-1.5 text-xs leading-5 ${
-          turnStatus.tone === "error"
-            ? "font-medium text-destructive"
-            : "text-muted-foreground"
-        }`}
-      >
-        {turnStatus.spinning ? (
-          <Loader2 className="size-3.5 shrink-0 animate-spin" />
+      <div className="flex min-w-0 items-center gap-2.5">
+        {turnStatus.spinning && !showAvatar ? (
+          <ThinkingOrb
+            state={turnStatus.state ?? "working"}
+            size={72}
+            className="shrink-0"
+          />
         ) : turnStatus.tone === "error" ? (
           <CircleAlert className="size-3.5 shrink-0" strokeWidth={2} />
         ) : null}
-        <span className="min-w-0 truncate">{turnStatus.label}</span>
+        <span
+          className={`min-w-0 truncate text-xs leading-5 ${
+            turnStatus.tone === "error"
+              ? "font-medium text-destructive"
+              : "text-muted-foreground"
+          }`}
+        >
+          {turnStatus.label}
+        </span>
       </div>
       {statusAccessory ? <div className="shrink-0">{statusAccessory}</div> : null}
     </div>
@@ -304,23 +309,25 @@ function AssistantTurnComponent({
     <div
       className="group/assistant-turn relative flex min-w-0 flex-col items-start gap-1 animate-in fade-in-0 slide-in-from-bottom-1 duration-snappy ease-out-expo"
     >
-      {showAvatar && assistantAvatarPreset ? (
+      {/* The jakubantalik anchor orb replaces the provider/harness avatar in the
+          chat. The provider props (assistantAvatar, assistantAvatarPreset,
+          harnessId, workspaceId) are left untouched and still flow through
+          ConversationTurns — the provider logic keeps working when the user
+          switches; only the rendered avatar is hidden. The orb carries the
+          live status animation while working and settles into the calm
+          "working" state once the turn ends, so it stays visible after the
+          response completes. */}
+      {showAvatar ? (
         <div className="mb-0.5 flex items-center">
-          <AgentAvatar className="size-6 rounded-full" />
-        </div>
-      ) : showAvatar && assistantAvatar ? (
-        <div className="mb-0.5 flex items-center">
-          <span
-            aria-hidden
-            className="grid size-6 shrink-0 place-items-center rounded-full text-[13px] leading-none"
-            style={{ backgroundColor: assistantAvatar.color }}
-          >
-            {assistantAvatar.emoji}
-          </span>
-        </div>
-      ) : showAvatar && workspaceId ? (
-        <div className="mb-0.5 flex items-center">
-          <HarnessAvatar harnessId={harnessId} seed={workspaceId} size="sm" />
+          <ThinkingOrb
+            state={
+              live
+                ? (turnStatus?.state ?? "working")
+                : "working"
+            }
+            size={72}
+            className="shrink-0"
+          />
         </div>
       ) : null}
       <div className="flex min-w-0 w-full flex-col">
@@ -366,12 +373,20 @@ function AssistantTurnComponent({
           <div className="mt-2 flex justify-start">{footerAccessory}</div>
         ) : null}
 
-        {outputs.length > 0 ? (
-          <AssistantTurnOutputs
+        {outputs.length > 0 || segments.some(
+          (segment) =>
+            segment.kind === "execution" &&
+            segment.items.some(
+              (item) =>
+                item.kind === "trace_step" &&
+                (item.step.sources?.length ?? 0) > 0
+            )
+        ) ? (
+          <AssistantTurnSources
             outputs={outputs}
+            segments={segments}
             onOpenOutput={onOpenOutput}
-            turnText={copyText}
-            workspaceId={workspaceId}
+            onLinkClick={onLinkClick}
           />
         ) : null}
 

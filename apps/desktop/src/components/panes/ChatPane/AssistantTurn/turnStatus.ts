@@ -4,6 +4,17 @@ import type {
   ChatTraceStep,
 } from "../types";
 
+export type OrbState =
+  | "working"
+  | "searching"
+  | "solving"
+  | "listening"
+  | "connecting"
+  | "weaving"
+  | "composing"
+  | "breathing"
+  | "shaping";
+
 export function formatWorkedDuration(ms: number): string {
   const totalSeconds = Math.max(1, Math.round(ms / 1000));
   if (totalSeconds < 60) {
@@ -17,6 +28,19 @@ export function formatWorkedDuration(ms: number): string {
   const hours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
   return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+}
+
+function resolveOrbState(label: string): OrbState {
+  const l = label.toLowerCase();
+  if (/search|lookup|find on the web|web search|scrape|fetch|read url|browse/i.test(l)) return "searching";
+  if (/solv|resolv|debug|fix|figure|analy/i.test(l)) return "solving";
+  if (/listen|hear|audio|mic|voice|speech/i.test(l)) return "listening";
+  if (/connect|link|handshake|auth|oauth|sign.?in|log.?in/i.test(l)) return "connecting";
+  if (/weav|braid|intertwine|plait/i.test(l)) return "weaving";
+  if (/compos|write|draft|author|edit|craft/i.test(l)) return "composing";
+  if (/think|reason|plan|figure|analy|debug|solv|resolv/i.test(l)) return "connecting"; // thinking → connecting
+  if (/shape|form|morph|structure|architect/i.test(l)) return "shaping";
+  return "working";
 }
 
 function summarizeThinking(text: string): string {
@@ -59,6 +83,8 @@ export interface TurnStatus {
   label: string;
   spinning: boolean;
   tone: "default" | "error";
+  /** Orb animation shown while spinning. */
+  state?: OrbState;
 }
 
 /**
@@ -105,7 +131,7 @@ export function resolveTurnStatus(
       .reverse()
       .find((step) => step.status === "running" || step.status === "waiting");
     if (activeStep) {
-      return { label: activeStep.title, spinning: true, tone: "default" };
+      return { label: activeStep.title, spinning: true, tone: "default", state: resolveOrbState(activeStep.title) };
     }
     const latestThinking = [...items]
       .reverse()
@@ -120,6 +146,7 @@ export function resolveTurnStatus(
         label: summarizeThinking(latestThinking.text),
         spinning: true,
         tone: "default",
+        state: "connecting",
       };
     }
     const fallback = statusFallback.replace(/\.+$/, "").trim();
@@ -127,6 +154,7 @@ export function resolveTurnStatus(
       label: fallback || (steps.length > 0 ? "Working" : "Thinking"),
       spinning: true,
       tone: "default",
+      state: resolveOrbState(fallback || (steps.length > 0 ? "Working" : "Thinking")),
     };
   }
 

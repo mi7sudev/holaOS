@@ -10,6 +10,7 @@ import { SidebarEmployeesSection } from "./SidebarEmployeesSection";
 import { selectedEmployeeAtom } from "./state/employees";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ThinkingOrb } from "@/components/ui/thinking-orb";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1689,9 +1690,11 @@ const SessionRow = memo(function SessionRow({
         <span className="flex-1 truncate">{label}</span>
       </button>
       {running ? (
-        <Loader2
+        <ThinkingOrb
+          state="working"
+          size={20}
           aria-label="Working"
-          className="pointer-events-none absolute top-1/2 right-2 size-3 -translate-y-1/2 animate-spin text-muted-foreground transition-opacity group-hover/session:opacity-0"
+          className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 transition-opacity group-hover/session:opacity-0"
         />
       ) : null}
       <DropdownMenu>

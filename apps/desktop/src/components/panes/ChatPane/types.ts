@@ -3,6 +3,30 @@ import type { ReactNode } from "react";
 export type ChatAttachment = SessionInputAttachmentPayload;
 export type ChatPaneVariant = "default" | "embedded";
 
+/** Minimal shape for a workspace output record — mirrors the electron
+ *  main-process definition but kept here so the renderer can import it
+ *  without pulling in the full electron types. */
+export interface WorkspaceOutputRecordPayload {
+  id: string;
+  workspace_id: string;
+  output_type: string;
+  title: string;
+  status: string;
+  module_id: string | null;
+  module_resource_id: string | null;
+  file_path: string | null;
+  html_content: string | null;
+  session_id: string | null;
+  input_id: string | null;
+  artifact_id: string | null;
+  folder_id: string | null;
+  platform: string | null;
+  project_id: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ChatBackgroundTaskReference {
   workspaceId: string;
   sourceType: string | null;
@@ -140,6 +164,14 @@ export interface ChatSerializedQuotedSkillBlock {
 
 export type ChatTraceStepStatus = "running" | "completed" | "error" | "waiting";
 
+/** A web link the agent surfaced this turn (e.g. from a web_search result).
+ *  Stored on the trace step so the turn can render a "sources" list of what
+ *  the answer actually cited — no fabricated data. */
+export interface ChatTraceSource {
+  title: string;
+  url: string;
+}
+
 export interface ChatTraceStep {
   id: string;
   kind: "phase" | "tool";
@@ -147,6 +179,9 @@ export interface ChatTraceStep {
   status: ChatTraceStepStatus;
   details: string[];
   order: number;
+  /** Links extracted from this step's tool result (search hits, scraped
+   *  pages, …). Absent when the tool produced no usable URLs. */
+  sources?: ChatTraceSource[];
   /** An errored phase the agent recovers from (e.g. an MCP server going
    *  unavailable mid-run). The step still renders its own error, but the
    *  turn isn't a failure, so it must not mark the whole group. */
