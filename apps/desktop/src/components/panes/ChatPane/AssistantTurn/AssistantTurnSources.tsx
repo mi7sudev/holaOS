@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { ExternalLink, FileText, ChevronDown } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import type { ChatTraceSource, ChatAssistantSegment, WorkspaceOutputRecordPayload } from "../types";
@@ -64,42 +64,11 @@ export function AssistantTurnSources({
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close on outside click
-  useEffect(() => {
-    if (!sourcesOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      // Don't close if clicking on a link (let navigation happen)
-      const targetElement = event.target as HTMLElement;
-      if (targetElement.closest("a")) return;
-      
-      const clickedButton = buttonRef.current?.contains(target);
-      const clickedDropdown = dropdownRef.current?.contains(target);
-      if (!clickedButton && !clickedDropdown) {
-        setSourcesOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [sourcesOpen]);
-
-  // Close on Escape key
-  useEffect(() => {
-    if (!sourcesOpen) return;
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSourcesOpen(false);
-      }
-    };
-    document.addEventListener("keydown", handleEscape);
-    return () => document.removeEventListener("keydown", handleEscape);
-  }, [sourcesOpen]);
-
   if (outputs.length === 0 && sourceTokens.length === 0) return null;
 
   return (
     <div className="mt-2.5 flex flex-col gap-1.5">
-      {/* Sources button + inline dropdown */}
+      {/* Sources button + CSS-grid dropdown */}
       {sourceTokens.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <button
@@ -148,16 +117,25 @@ export function AssistantTurnSources({
             />
           </button>
 
-          {/* Inline dropdown - pushes content down when open */}
-          {sourcesOpen && (
+          {/* CSS-grid dropdown - always in DOM, animated via grid-template-rows */}
+          <div
+            ref={dropdownRef}
+            className={cn(
+              "overflow-hidden",
+              "transition-[grid-template-rows,opacity] duration-300 ease-out-expo"
+            )}
+            style={{
+              gridTemplateRows: sourcesOpen ? "1fr" : "0fr",
+              opacity: sourcesOpen ? 1 : 0,
+            }}
+            role="menu"
+            aria-label="Sources"
+          >
             <div
-              ref={dropdownRef}
               className={cn(
                 "rounded-[10px] border border-border bg-card shadow-xl",
                 "animate-in fade-in-0 duration-150 ease-out-expo"
               )}
-              role="menu"
-              aria-label="Sources"
             >
               <div className="flex flex-col gap-0.5 p-2 max-h-[300px] overflow-auto">
                 {sourceTokens.map((token) => (
@@ -191,7 +169,7 @@ export function AssistantTurnSources({
                 ))}
               </div>
             </div>
-          )}
+          </div>
         </div>
       )}
 
