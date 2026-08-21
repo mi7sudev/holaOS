@@ -62,6 +62,11 @@ export function AssistantTurnSources({
   const sourceTokens = extractSourceTokens(segments);
   const [sourcesOpen, setSourcesOpen] = useState(false);
 
+  const handleSourceClick = (url: string, event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    onLinkClick?.(url);
+  };
+
   if (outputs.length === 0 && sourceTokens.length === 0) return null;
 
   return (
@@ -139,8 +144,7 @@ export function AssistantTurnSources({
                     <a
                       key={token.source.url}
                       href={token.source.url}
-                      target="_blank"
-                      rel="noreferrer"
+                      onClick={(e) => handleSourceClick(token.source.url, e)}
                       className={cn(
                         "flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-hover hover:text-foreground",
                         "group/source-row"
