@@ -69,6 +69,10 @@ export function AssistantTurnSources({
     if (!sourcesOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
+      // Don't close if clicking on a link (let navigation happen)
+      const targetElement = event.target as HTMLElement;
+      if (targetElement.closest("a")) return;
+      
       const clickedButton = buttonRef.current?.contains(target);
       const clickedDropdown = dropdownRef.current?.contains(target);
       if (!clickedButton && !clickedDropdown) {
