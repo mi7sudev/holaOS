@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { ExternalLink, FileText, ChevronDown } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 import type { ChatTraceSource, ChatAssistantSegment, WorkspaceOutputRecordPayload } from "../types";
@@ -61,7 +61,6 @@ export function AssistantTurnSources({
 }) {
   const sourceTokens = extractSourceTokens(segments);
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   if (outputs.length === 0 && sourceTokens.length === 0) return null;
 
@@ -115,11 +114,10 @@ export function AssistantTurnSources({
             />
           </button>
 
-          {/* CSS-grid dropdown - always in DOM, animated via grid-template-rows */}
+          {/* CSS-grid dropdown - matches Beautiful UI exactly */}
           <div
-            ref={dropdownRef}
             className={cn(
-              "grid overflow-hidden",
+              "grid",
               "transition-[grid-template-rows,opacity] duration-300 ease-out-expo"
             )}
             style={{
@@ -129,42 +127,44 @@ export function AssistantTurnSources({
             role="menu"
             aria-label="Sources"
           >
-            <div
-              className={cn(
-                "rounded-[10px] border border-border bg-card shadow-xl",
-                "animate-in fade-in-0 duration-150 ease-out-expo"
-              )}
-            >
-              <div className="flex flex-col gap-0.5 p-2 max-h-[300px] overflow-auto">
-                {sourceTokens.map((token) => (
-                  <a
-                    key={token.source.url}
-                    href={token.source.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={cn(
-                      "flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-hover hover:text-foreground",
-                      "group/source-row"
-                    )}
-                  >
-                    <img
-                      src={token.faviconUrl}
-                      alt=""
-                      className="source-avatar size-4 rounded-[4px]"
-                      loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.src = `https://www.google.com/s2/favicons?domain=${getDomain(token.source.url)}&sz=32`;
-                      }}
-                    />
-                    <span className="animated-underline truncate flex-1">
-                      {token.source.title || getDomain(token.source.url)}
-                    </span>
-                    <span className="ml-auto font-mono text-[10.5px] text-muted-foreground/70">
-                      {getDomain(token.source.url)}
-                    </span>
-                    <ExternalLink className="size-3 shrink-0 opacity-50 group-hover/source-row:opacity-100" />
-                  </a>
-                ))}
+            <div className="overflow-hidden">
+              <div
+                className={cn(
+                  "rounded-[10px] border border-border bg-card shadow-xl",
+                  "animate-in fade-in-0 duration-150 ease-out-expo"
+                )}
+              >
+                <div className="flex flex-col gap-0.5 p-2 max-h-[300px] overflow-auto">
+                  {sourceTokens.map((token) => (
+                    <a
+                      key={token.source.url}
+                      href={token.source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={cn(
+                        "flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-hover hover:text-foreground",
+                        "group/source-row"
+                      )}
+                    >
+                      <img
+                        src={token.faviconUrl}
+                        alt=""
+                        className="source-avatar size-4 rounded-[4px]"
+                        loading="lazy"
+                        onError={(e) => {
+                          e.currentTarget.src = `https://www.google.com/s2/favicons?domain=${getDomain(token.source.url)}&sz=32`;
+                        }}
+                      />
+                      <span className="animated-underline truncate flex-1">
+                        {token.source.title || getDomain(token.source.url)}
+                      </span>
+                      <span className="ml-auto font-mono text-[10.5px] text-muted-foreground/70">
+                        {getDomain(token.source.url)}
+                      </span>
+                      <ExternalLink className="size-3 shrink-0 opacity-50 group-hover/source-row:opacity-100" />
+                    </a>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
