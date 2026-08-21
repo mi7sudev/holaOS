@@ -161,7 +161,6 @@ export function AssistantTurnSources({
                       "flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-hover hover:text-foreground",
                       "group/source-row"
                     )}
-                    onClick={() => setSourcesOpen(false)}
                   >
                     <img
                       src={token.faviconUrl}
