@@ -61,7 +61,6 @@ export function AssistantTurnSources({
 }) {
   const sourceTokens = extractSourceTokens(segments);
   const [sourcesOpen, setSourcesOpen] = useState(false);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   if (outputs.length === 0 && sourceTokens.length === 0) return null;
@@ -72,7 +71,6 @@ export function AssistantTurnSources({
       {sourceTokens.length > 0 && (
         <div className="flex flex-col gap-1.5">
           <button
-            ref={buttonRef}
             type="button"
             aria-expanded={sourcesOpen}
             aria-haspopup="menu"
@@ -121,7 +119,7 @@ export function AssistantTurnSources({
           <div
             ref={dropdownRef}
             className={cn(
-              "overflow-hidden",
+              "grid overflow-hidden",
               "transition-[grid-template-rows,opacity] duration-300 ease-out-expo"
             )}
             style={{
