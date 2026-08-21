@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { ExternalLink, FileText, ChevronDown } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
-import { createPortal } from "react-dom";
 import type { ChatTraceSource, ChatAssistantSegment, WorkspaceOutputRecordPayload } from "../types";
 
 function getDomain(url: string): string {
@@ -63,34 +62,6 @@ export function AssistantTurnSources({
   const sourceTokens = extractSourceTokens(segments);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
-
-  // Calculate dropdown position when opened
-  useEffect(() => {
-    if (sourcesOpen && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect();
-      const dropdownWidth = 320; // w-80 = 320px
-      const gap = 4;
-      
-      // Position below the button, aligned to the right edge
-      const left = rect.right - dropdownWidth;
-      const top = rect.bottom + gap;
-      
-      // Ensure it stays within viewport
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const adjustedLeft = Math.max(8, Math.min(left, viewportWidth - dropdownWidth - 8));
-      const adjustedTop = Math.min(top, viewportHeight - 8); // Will be clamped by max-height
-      
-      setDropdownStyle({
-        position: "fixed",
-        left: adjustedLeft,
-        top: adjustedTop,
-        zIndex: 50,
-        width: dropdownWidth,
-      });
-    }
-  }, [sourcesOpen]);
 
   // Close on outside click
   useEffect(() => {
@@ -119,9 +90,10 @@ export function AssistantTurnSources({
   if (outputs.length === 0 && sourceTokens.length === 0) return null;
 
   return (
-    <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+    <div className="mt-2.5 flex flex-col gap-1.5">
+      {/* Sources button + inline dropdown */}
       {sourceTokens.length > 0 && (
-        <div className="relative">
+        <div className="flex flex-col gap-1.5">
           <button
             ref={buttonRef}
             type="button"
@@ -130,7 +102,8 @@ export function AssistantTurnSources({
             onClick={() => setSourcesOpen((current) => !current)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-[6px] px-1.5 py-0.5 text-left transition-colors duration-150 hover:bg-hover",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "w-fit"
             )}
           >
             <span className="flex -space-x-1">
@@ -167,57 +140,54 @@ export function AssistantTurnSources({
             />
           </button>
 
+          {/* Inline dropdown - pushes content down when open */}
           {sourcesOpen && (
-            createPortal(
-              <div
-                className={cn(
-                  "rounded-[10px] border border-border bg-card shadow-xl",
-                  "animate-in fade-in-0 zoom-in-95 duration-150 ease-out-expo"
-                )}
-                style={dropdownStyle}
-                role="menu"
-                aria-label="Sources"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex flex-col gap-0.5 p-2 max-h-[300px] overflow-auto">
-                  {sourceTokens.map((token) => (
-                    <a
-                      key={token.source.url}
-                      href={token.source.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={cn(
-                        "flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-hover hover:text-foreground",
-                        "group/source-row"
-                      )}
-                      onClick={() => setSourcesOpen(false)}
-                    >
-                      <img
-                        src={token.faviconUrl}
-                        alt=""
-                        className="source-avatar size-4 rounded-[4px]"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.currentTarget.src = `https://www.google.com/s2/favicons?domain=${getDomain(token.source.url)}&sz=32`;
-                        }}
-                      />
-                      <span className="animated-underline truncate flex-1">
-                        {token.source.title || getDomain(token.source.url)}
-                      </span>
-                      <span className="ml-auto font-mono text-[10.5px] text-muted-foreground/70">
-                        {getDomain(token.source.url)}
-                      </span>
-                      <ExternalLink className="size-3 shrink-0 opacity-50 group-hover/source-row:opacity-100" />
-                    </a>
-                  ))}
-                </div>
-              </div>,
-              document.body,
-            )
+            <div
+              className={cn(
+                "rounded-[10px] border border-border bg-card shadow-xl",
+                "animate-in fade-in-0 duration-150 ease-out-expo"
+              )}
+              role="menu"
+              aria-label="Sources"
+            >
+              <div className="flex flex-col gap-0.5 p-2 max-h-[300px] overflow-auto">
+                {sourceTokens.map((token) => (
+                  <a
+                    key={token.source.url}
+                    href={token.source.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={cn(
+                      "flex items-center gap-2 rounded-[6px] px-1.5 py-1 text-[12px] text-muted-foreground transition-colors duration-150 hover:bg-hover hover:text-foreground",
+                      "group/source-row"
+                    )}
+                    onClick={() => setSourcesOpen(false)}
+                  >
+                    <img
+                      src={token.faviconUrl}
+                      alt=""
+                      className="source-avatar size-4 rounded-[4px]"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.src = `https://www.google.com/s2/favicons?domain=${getDomain(token.source.url)}&sz=32`;
+                      }}
+                    />
+                    <span className="animated-underline truncate flex-1">
+                      {token.source.title || getDomain(token.source.url)}
+                    </span>
+                    <span className="ml-auto font-mono text-[10.5px] text-muted-foreground/70">
+                      {getDomain(token.source.url)}
+                    </span>
+                    <ExternalLink className="size-3 shrink-0 opacity-50 group-hover/source-row:opacity-100" />
+                  </a>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}
 
+      {/* Output files */}
       {outputs.map((output) => (
         <div key={output.id} className="relative group/output">
           <button
