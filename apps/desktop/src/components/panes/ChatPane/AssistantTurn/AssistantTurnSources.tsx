@@ -62,12 +62,16 @@ export function AssistantTurnSources({
   const sourceTokens = extractSourceTokens(segments);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close on outside click
   useEffect(() => {
     if (!sourcesOpen) return;
     const handleClickOutside = (event: MouseEvent) => {
-      if (buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const clickedButton = buttonRef.current?.contains(target);
+      const clickedDropdown = dropdownRef.current?.contains(target);
+      if (!clickedButton && !clickedDropdown) {
         setSourcesOpen(false);
       }
     };
@@ -143,6 +147,7 @@ export function AssistantTurnSources({
           {/* Inline dropdown - pushes content down when open */}
           {sourcesOpen && (
             <div
+              ref={dropdownRef}
               className={cn(
                 "rounded-[10px] border border-border bg-card shadow-xl",
                 "animate-in fade-in-0 duration-150 ease-out-expo"
