@@ -1761,37 +1761,171 @@ function SidebarAppSessionList({
   workspaceId: string;
   onOpenSession: (sessionId: string) => void;
 }) {
-  const { sessions } = useWorkspaceMainSessions(workspaceId, appId);
+  const { sessions, setSessions } = useWorkspaceMainSessions(workspaceId, appId);
   const selectedSessionId = useAtomValue(selectedSessionIdAtom);
+  const activeSessionId = useAtomValue(selectedSessionIdAtom);
+  const { startNewChat } = useStartNewChat(workspaceId || null);
+  const [renameTarget, setRenameTarget] = useState<{
+    sessionId: string;
+    initial: string;
+  } | null>(null);
+
+  const handleRename = useCallback(
+    async (sessionId: string, nextTitle: string) => {
+      setSessions((current) =>
+        current.map((s) =>
+          s.session_id === sessionId ? { ...s, title: nextTitle } : s,
+        ),
+      );
+      try {
+        await window.electronAPI.workspace.updateMainSession(
+          workspaceId,
+          sessionId,
+          { title: nextTitle },
+        );
+      } catch {
+        // Best-effort; the next list refresh reconciles on failure.
+      }
+    },
+    [workspaceId, setSessions],
+  );
+
+  const handleDelete = useCallback(
+    async (sessionId: string) => {
+      setSessions((current) =>
+        current.filter((s) => s.session_id !== sessionId),
+      );
+      // Deleting the chat you're looking at would leave the pane on a dead
+      // session — drop into a fresh New-chat draft instead.
+      if (sessionId === activeSessionId) {
+        void startNewChat();
+      }
+      try {
+        await window.electronAPI.workspace.deleteMainSession(
+          workspaceId,
+          sessionId,
+        );
+      } catch {
+        // Best-effort; the next list refresh reconciles on failure.
+      }
+    },
+    [workspaceId, setSessions, activeSessionId, startNewChat],
+  );
+
+  const handleRequestRename = useCallback(
+    (session: MainSessionRecordPayload) => {
+      setRenameTarget({ sessionId: session.session_id, initial: session.title?.trim() || "" });
+    },
+    [],
+  );
+
+  const handleRequestDelete = useCallback(
+    (session: MainSessionRecordPayload) => {
+      if (
+        !window.confirm(
+          `Delete '${session.title?.trim() || "Untitled chat"}'?\n\nThis permanently deletes the chat and its history. This cannot be undone.`,
+        )
+      ) {
+        return;
+      }
+      void handleDelete(session.session_id);
+    },
+    [handleDelete],
+  );
+
   if (sessions.length === 0) {
-    return (
-      <div className="py-1 pl-9 text-muted-foreground text-xs">No chats yet</div>
-    );
+    return <div className="py-1 pl-9 text-muted-foreground text-xs">No chats yet</div>;
   }
   return (
     <div className="flex flex-col gap-0.5">
-      {sessions.map((session) => {
-        const label = session.title?.trim() || "Untitled chat";
-        return (
-          <button
-            className={cn(
-              "flex min-w-0 items-center rounded py-1 pr-2 pl-9 text-left text-[13px] transition-colors",
-              session.session_id === selectedSessionId
-                ? "bg-foreground/[0.07] text-foreground"
-                : "text-muted-foreground hover:bg-foreground/6 hover:text-foreground",
-            )}
-            key={session.session_id}
-            onClick={() => onOpenSession(session.session_id)}
-            title={label}
-            type="button"
-          >
-            <span className="truncate">{label}</span>
-          </button>
-        );
-      })}
+      {sessions.map((session) => (
+        <HolaAppSessionRow
+          key={session.session_id}
+          session={session}
+          selected={session.session_id === selectedSessionId}
+          onOpenSession={onOpenSession}
+          onRequestRename={handleRequestRename}
+          onRequestDelete={handleRequestDelete}
+          renameTarget={renameTarget}
+          setRenameTarget={setRenameTarget}
+        />
+      ))}
     </div>
   );
 }
+
+const HolaAppSessionRow = memo(function HolaAppSessionRow({
+  session,
+  selected,
+  onOpenSession,
+  onRequestRename,
+  onRequestDelete,
+  renameTarget,
+  setRenameTarget,
+}: {
+  session: MainSessionRecordPayload;
+  selected: boolean;
+  onOpenSession: (sessionId: string) => void;
+  onRequestRename: (session: MainSessionRecordPayload) => void;
+  onRequestDelete: (session: MainSessionRecordPayload) => void;
+  renameTarget: { sessionId: string; initial: string } | null;
+  setRenameTarget: (target: { sessionId: string; initial: string } | null) => void;
+}) {
+  const label = session.title?.trim() || "Untitled chat";
+
+  return (
+    <div className="group/session relative">
+      <button
+        className={cn(
+          "flex min-w-0 items-center rounded py-1 pr-2 pl-9 text-left text-[13px] transition-colors",
+          selected
+            ? "bg-foreground/[0.07] text-foreground"
+            : "text-muted-foreground hover:bg-foreground/6 hover:text-foreground",
+        )}
+        onClick={() => onOpenSession(session.session_id)}
+        title={label}
+        type="button"
+      >
+        <span className="truncate">{label}</span>
+      </button>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <button
+              aria-label={`Actions for ${label}`}
+              className="absolute top-1/2 right-1 grid size-5 -translate-y-1/2 place-items-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-foreground/8 hover:text-foreground focus-visible:opacity-100 group-hover/session:opacity-100 data-[popup-open]:opacity-100"
+              onClick={(e) => e.stopPropagation()}
+              type="button"
+            >
+              <MoreHorizontal className="size-3.5" />
+            </button>
+          }
+        />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestRename(session);
+            }}
+          >
+            <Pencil className="size-3.5" />
+            Rename
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestDelete(session);
+            }}
+          >
+            <Trash2 className="size-3.5" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+});
 
 // One HolaApp row: opens the app on click, and a disclosure chevron reveals the
 // app's own chat sessions nested beneath it (archived under the app).
