@@ -1874,10 +1874,10 @@ const HolaAppSessionRow = memo(function HolaAppSessionRow({
   const label = session.title?.trim() || "Untitled chat";
 
   return (
-    <div className="group/session relative">
+    <div className="group/session relative flex h-7 items-center rounded-md text-sm transition-colors">
       <button
         className={cn(
-          "flex min-w-0 items-center rounded py-1 pr-2 pl-9 text-left text-[13px] transition-colors",
+          "flex h-full min-w-0 flex-1 items-center gap-2 rounded-md pr-7 pl-9 text-left text-[13px] transition-colors",
           selected
             ? "bg-foreground/[0.07] text-foreground"
             : "text-muted-foreground hover:bg-foreground/6 hover:text-foreground",
